@@ -7,4 +7,4 @@ Katana & Edwin
 
 Website
 -------
-[clicki.com](http://clicki.cn)
+[clicki.cn](http://clicki.cn)
