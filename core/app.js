@@ -15,17 +15,22 @@ define(function(require, exports){
 		var v = ag.callee.caller['arguments'];
 		if (ag.length == 2){
 			return func.apply(scope, v);
-		}else if (args instanceof Array){
+		}else if (args instanceof Array && args.length){
 			return func.apply(scope, args);
 		}else {
 			return func.call(scope);
 		}
 	}
-	function self_run(scope, func, args){
+	// 模块自有公共属性和方法调用
+	function mine_run(scope, func, args){
 		return argv_run(arguments, this.prototype, scope, func, args);
 	}
 	// 私有对象属性设置
-	function private_run(scope, func, args){
+	function self_run(scope, func){
+		var args = [];
+		for (var i=2; i<arguments.length; i++){
+			args.push(arguments[i]);
+		}
 		return argv_run(arguments, this.p, scope, func, args);
 	}
 	function extend(sub,sup,proto,priv){
@@ -54,7 +59,7 @@ define(function(require, exports){
 		c.constructor = sub;
 		sub.master = f;
 		sub.self = self_run;
-		sub['private'] = private_run;
+		sub.mine = mine_run;
 		sub.p = priv;
 		sub.version = exports.version;
 		proto = null;
@@ -66,11 +71,11 @@ define(function(require, exports){
 	// 系统日志函数
 	var con = window.console || {};
 	exports.log = function(){
-		if (con.log && config('debug') > 0){
-			if (con.log.apply){
-				con.log.apply(con, arguments);
+		if (con.error && config('debug') > 0){
+			if (con.error.apply){
+				con.error.apply(con, arguments);
 			}else {
-				con.log(arguments[0]);
+				con.error(arguments[0]);
 			}
 		}
 	}
@@ -107,7 +112,7 @@ define(function(require, exports){
 	function isCreator(func){
 		if (!func || !func.master) { return false; }
 		if (func.self !== self_run) { return false; }
-		if (func['private'] !== private_run) { return false; }
+		if (func.mine !== mine_run) { return false; }
 		if (func.version !== exports.version) { return false; }
 		return true;
 	}
@@ -280,7 +285,7 @@ define(function(require, exports){
 			return {
 				'from': sender,
 				'type': type,
-				'param': param || null,
+				'param': param,
 				'data': null,
 				'target': null,
 				'count': 0,
@@ -322,8 +327,12 @@ define(function(require, exports){
 		 * @return {Bool}              固定返回true, 匹配事件函数的执行状态
 		 */
 		notifySent: function(evt, callback, context){
-			if (!isFunc(callback)){
+			if (!callback){
 				callback = evt.from.onEventSent;
+			}else if (isString(callback)){
+				callback = evt.from[callback];
+			}else if (!isFunc(callback)){
+				callback = null;
 			}
 			if (callback){
 				try {
@@ -576,10 +585,10 @@ define(function(require, exports){
 			if (cb){
 				// 处理数据结构
 				var error = null;
-				if (data.success) {
+				if (data && data.success) {
 					data = data.result;
 				}else {
-					error = data;
+					error = data || {success:false, message:LANG('服务器返回信息无效'), code:-10};
 					data = null;
 				}
 
@@ -594,7 +603,7 @@ define(function(require, exports){
 						ctx.call(cb, error, data, this[dcEvtDat]);
 					}
 				}else if (isFunc(cb)){
-					cb.call(ctx || exports, error, data, this[dcEvtDat]);
+					cb.call(ctx || window, error, data, this[dcEvtDat]);
 				}
 			}
 		},
@@ -1070,10 +1079,12 @@ define(function(require, exports){
 			if (!uri) {return this;}
 			if (uri.charAt(0) == '/') {return exports.core.get(uri);}
 
+			var name;
 			var obj = this;
 			var ns = uri.split('/');
 			while (ns.length){
-				obj = obj.child(ns.shift());
+				name = ns.shift();
+				obj = (name == '..') ? obj.parent() : obj.child(name);
 				if (!obj) {return obj;}
 			}
 			return obj;
@@ -1129,7 +1140,7 @@ define(function(require, exports){
 					}
 				}
 			}else {
-				ch = this.child(name);
+				ch = (name == '..') ? this.parent() : this.child(name);
 				if (ch){
 					if (uri){
 						ch.gets(uri, list, 1);
@@ -1319,7 +1330,7 @@ define(function(require, exports){
 			if (!dom.jquery){
 				dom = $(dom);
 			}
-			if (isFunc(data) || arguments.length == 3){
+			if (isFunc(data) || arguments.length == 4){
 				callback = data;
 				data = null;
 			}
@@ -1418,32 +1429,43 @@ define(function(require, exports){
 		},
 		/**
 		 * 过去模块数据 (默认直接返回子模块数据)
-		 * @param  {Bool}   by_name 是否已名字方式整合数据结果
-		 * @return {Object}         返回结果对象或数字结果
+		 * @param  {Bool}   return_array 是否以数组方式整合数据结果
+		 * @return {Object}              返回结果对象或数字结果
 		 */
-		getData: function(by_name){
-			return this.getChildData(by_name);
+		getData: function(return_array){
+			return this.getChildData(return_array);
 		},
 		/**
 		 * 获取所有子模块数据
-		 * @param  {Bool}   by_name 是否已名字方式整合数据结果
-		 * @return {Object}         返回结果对象或数字结果
+		 * @param  {Bool}   return_array 是否以数组方式整合数据结果
+		 * @return {Object}              返回结果对象或数字结果
 		 */
-		getChildData: function(by_name){
-			var data;
-			if (by_name){
-				data = {};
-				for (var name in this._[childs_name]){
-					if (!this._[childs_name].hasOwnProperty(name)) {continue;}
-					data[name] = this._[childs_name][name].getData(by_name);
+		getChildData: function(return_array){
+			var list = this._[childs];
+			if (list){
+				var data = return_array ? [] : {};
+				var id, value, empty = 1;
+				for (var i=0; i<list.length; i++){
+					id = return_array ? i : list[i]._.name;
+					value = list[i].getData(return_array);
+					if (value !== undefined){
+						data[id] = value;
+						empty = 0;
+					}
 				}
-			}else {
-				data = [];
-				for (var i=0; i<this._[childs].length; i++){
-					data.push(this._[childs][i].getData(by_name));
+				return empty ? undefined : data;
+			}
+		},
+		/**
+		 * 循环调用模块重置(重写本函数建议调用父模块的该函数)
+		 */
+		reset: function(){
+			var list = this._[childs];
+			if (list){
+				for (var i=0; i<list.length; i++){
+					list[i].reset();
 				}
 			}
-			return data;
 		}
 	});
 	exports.Module = Module;
@@ -1576,4 +1598,46 @@ define(function(require, exports){
 			window.history.go(uri);
 		}
 	}
+
+	/**
+	 * 加载模块并回调
+	 * @param  {String}   uri      模块地址
+	 * @param  {Object}   param    <可选> 回调函数参数
+	 * @param  {Function} callback 回调函数 / 实例模块
+	 * @param  {Object}   context  <可选> 回调函数执行域 / 实例模块方法名称
+	 * @return {None}            无返回
+	 */
+	function loadModule(uri, param, callback, context){
+		var name, pos = uri.lastIndexOf('.');
+		if (pos !== -1){
+			name = uri.substr(pos + 1);
+			uri = uri.substr(0, pos);
+		}
+		if (isFunc(param) || isModule(param)){
+			context = callback;
+			callback = param;
+			param = null;
+		}
+		if (isModule(callback)){
+			var cb = callback[context];
+			if (isFunc(cb)){
+				context = callback;
+				callback = cb;
+				cb = null;
+			}
+		}
+		require.async(uri, function(mod){
+			if (name){
+				mod = mod[name];
+			}
+			if (!mod){
+				// 加载模块失败或者模块属性不存在
+				exports.error('loadModule Error! - '+ uri + (name ? '.'+name : ''));
+			}else if (isFunc(callback)){
+				callback.call((context || window), mod, param);
+			}
+			mod = name = pos = uri = param = callback = context = null;
+		});
+	}
+	exports.loadModule = loadModule;
 });

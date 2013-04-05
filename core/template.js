@@ -2,7 +2,7 @@ define(function(require, exports){
 	var boot = require('boot');
 	var app = require('app');
 	var $ = require('jquery');
-	var cache = {}
+	var cache = {};
 
 	// 简单的模板引擎
 	function template(){
@@ -21,7 +21,10 @@ define(function(require, exports){
 		var var_list = '';
 
 		function esc_rp(m){ return tab[m]; }
-		function esc(s){ return typeof(s) != 'string' ? s : s.replace(esc_reg, esc_rp); }
+		function esc(s, html){
+			if (s===null) {return '';}
+			return (!html || typeof(s) != 'string') ? s : s.replace(esc_reg, esc_rp);
+		}
 
 		function make_var_list(code){
 			var n,m;
@@ -60,7 +63,7 @@ define(function(require, exports){
 				pos = m.index + m[0].length;
 				if (t) {code += text(t);}
 				make_var_list(m[2]);
-				code += (m[1] == '#' ? 'this.e(' : '(') + m[2] + ')+';
+				code += 'this.e(' + m[2] + ','+(m[1] == '#'?1:0)+')+';
 			}
 			t = pos === 0 ? s : s.substr(pos);
 			if (t) {code += text(t, 1);}
@@ -213,7 +216,7 @@ define(function(require, exports){
 		}
 
 		if (file.charAt(0) != '/'){
-			file = app.config('app_base') + file;
+			file = app.config('tpl_base') + file;
 		}
 
 		$.ajax(file, {
@@ -234,7 +237,7 @@ define(function(require, exports){
 		if (!id){
 			id = boot.env.action;
 		}
-		if (id.charAt(0) != '/'){
+		if (id.indexOf('/') === -1){
 			id = boot.env.module + '/' + id;
 		}
 		return engine.render(id, data);

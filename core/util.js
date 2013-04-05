@@ -77,6 +77,21 @@ define(function(require, ex){
 	ex.isSafari = (tmp = ua.match(/version\/([\d.]+).*safari/))?tmp[1]:false;
 	ua = tmp = null;
 
+	var trim = String.prototype.trim;
+	if (!trim){
+		var trim_exp = /(^\s*)|(\s*$)/g;
+		trim = function(){
+			return this.replace(trim_exp, '');
+		}
+	}
+	ex.trim = function(str){
+		if (isString(str)){
+			return trim.call(str);
+		}else {
+			return str;
+		}
+	}
+
 	/**
 	 * 返回对象自有的属性值
 	 * @param  {Object} obj  属性所属的对象
@@ -158,6 +173,10 @@ define(function(require, ex){
 		evt.stopPropagation();
 		return false;
 	};
+	ex.stopEvent = function(evt){
+		evt.stopPropagation();
+		return true;
+	}
 
 	ex.each = function(list, cb, ct){
 		if (!list || !isFunc(cb)) {return false;}
@@ -216,18 +235,18 @@ define(function(require, ex){
 		}
 	}
 
-	ex.find = function(list, value, field){
+	function Index(list, value, field){
 		var ret, c, i, al = (arguments.length >= 3);
 		if (isArray(list)){
 			c = list.length;
 			for (i=0; i<c; i++){
 				ret = list[i];
 				if (al){
-					if (ret && ret[field] == value){
-						return ret;
+					if (ret && ret[field] === value){
+						return i;
 					}
-				}else if (ret == value){
-					return ret;
+				}else if (ret === value){
+					return i;
 				}
 			}
 		}else if (isObject(list)){
@@ -235,15 +254,36 @@ define(function(require, ex){
 				if (!_has.call(list, i)) {continue;}
 				ret = list[i];
 				if (al){
-					if (ret && ret[field] == value){
-						return ret;
+					if (ret && ret[field] === value){
+						return i;
 					}
-				}else if (ret == value){
-					return ret;
+				}else if (ret === value){
+					return i;
 				}
 			}
 		}
-		return undefined;
+		return null;
+	}
+	ex.index = Index;
+
+	ex.find = function(list){
+		var id = Index.apply(this, arguments);
+		if (id !== null){
+			return list[id];
+		}else {
+			return null;
+		}
+	}
+
+	ex.remove = function(list){
+		var id = Index.apply(this, arguments);
+		if (id === null){ return false; }
+		if (isArray(list)){
+			list.splice(id, 1);
+		}else {
+			delete list[id];
+		}
+		return true;
 	}
 
 	ex.getViewport = function(){
@@ -253,5 +293,101 @@ define(function(require, ex){
 			width: (m ? de.clientWidth : db.clientWidth),
 			height: (m ? de.clientHeight : db.clientHeight)
 		};
+	}
+
+	ex.merge = function(target, source){
+		ex.each(source, function(val, name){
+			if (val === null || val === undefined){
+				if (target){ delete target[name]; }
+			}else {
+				if (!target){ target = {};}
+				target[name] = val;
+			}
+		});
+		return target;
+	}
+	ex.first = function(list){
+		var ret;
+		if (isArray(list)){
+			ret = list.shift();
+		}else if (isObject(list)){
+			for (var i in list){
+				if (has(list, i)){
+					ret = list[i];
+					break;
+				}
+			}
+		}
+		return ret;
+	}
+
+	var tab = {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;'};
+	var esc_reg  = /[&<>"]/g;
+	function esc_rp(m){ return tab[m]; }
+	ex.html = function(s){
+		return (typeof(s) != 'string') ? s : s.replace(esc_reg, esc_rp);
+	}
+
+	/**
+	 * 格式化数字, 自动补0前续
+	 * @param  {Number} number 要格式化的数字
+	 * @param  {Number} size   格式化后出来的数字位数
+	 * @return {String}        格式化结果
+	 */
+	function fix0(number, size){
+		number = number.toString();
+		while (number.length < size){
+			number = '0' + number;
+		}
+		return number;
+	}
+	ex.fix0 = fix0;
+
+	var timestamp = null;
+	var format_exp = /[YymndjNwaAghGHis]/g;
+	function format_callback(tag){
+		var t = timestamp;
+		switch (tag){
+			case 'Y': return t.getFullYear();
+			case 'y': return t.getFullYear() % 100;
+			case 'm': return fix0(t.getMonth()+1, 2);
+			case 'n': return t.getMonth()+1;
+			case 'd': return fix0(t.getDate(), 2);
+			case 'j': return t.getDate();
+			case 'N': return t.getDay();
+			case 'w': return t.getDay() % 7;
+			case 'a': return t.getHours() < 12 ? 'am':'pm';
+			case 'A': return t.getHours() < 12 ? 'AM':'PM';
+			case 'g': return t.getHours() % 12 + 1;
+			case 'h': return fix0(t.getHours() % 12 + 1, 2);
+			case 'G': return t.getHours();
+			case 'H': return fix0(t.getHours(), 2);
+			case 'i': return fix0(t.getMinutes(), 2);
+			case 's': return fix0(t.getSeconds(), 2);
+		}
+		return tag;
+	}
+	ex.date = function(format, date, offset){
+		if (!format) {return '';}
+		var ts;
+		if (isNaN(date)){
+			if (date instanceof Date){
+				ts = date;
+				if (!isNaN(offset)){
+					ts.setTime(ts.getTime() + offset * 1000);
+				}
+			}else {
+				ts = new Date();
+			}
+		}else if (date > 5e8){
+			// 时间戳
+			ts = (new Date()).setTime(date * 1000);
+		}else {
+			// 时间偏移(秒数)
+			ts = new Date();
+			ts.setTime(ts.getTime() + date * 1000);
+		}
+		timestamp = ts;
+		return format.replace(format_exp, format_callback);
 	}
 });

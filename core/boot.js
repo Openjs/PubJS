@@ -8,6 +8,7 @@ function BASE(path){
 	}
 	return path;
 }
+window.BASE = BASE;
 
 // SeaJS全局配置
 Sea.config({
@@ -18,6 +19,7 @@ Sea.config({
 		"libs":			BASE("libs"),
 
 		// 基本模块缩写
+		"sys_config":	BASE("core/config.js"),
 		"boot":			BASE("core/boot.js"),
 		"app":			BASE("core/app.js"),
 		"util":			BASE("core/util.js"),
@@ -65,8 +67,8 @@ define(function(require, exports){
 	};
 
 	function run(module, action, param){
-		env.module = module || 'default';
-		env.action = action || 'main';
+		env.module = module || app.config('router/default_module') || 'default';
+		env.action = action || app.config('router/default_action') || 'main';
 		env.param  = param || null;
 
 		// 判断登录状态
@@ -186,8 +188,8 @@ define(function(require, exports){
 		var hash = Win.location.hash.replace(/^[#\/\!]+/, '');
 		var param = hash.split('/');
 
-		var module = param.shift() || 'default';
-		var action = param.shift() || 'main';
+		var module = param.shift();
+		var action = param.shift();
 		param  = param.join('/');
 
 		run(module, action, param);
@@ -209,40 +211,16 @@ define(function(require, exports){
 	}
 
 	// 设置默认配置
-	app.init({
-		// 调试模式
-		debug: 2,
-		// 控制器所在目录
-		app_base: BASE('app/'),
-		// 广告资源地址路径
-		front_base: 'http://dsp_web.jin/',
-		// 数据中心参数配置
-		data:{
-			max_query: 10,
-			points: {
-				// '/': '/rest/',
-				'/rest/': (Win.location.host == 'dsp.server' ? '/sweety/' : BASE('test/port.php/sweety/')),
-				'/i18n': BASE('i18n/')
-				// '/rest/listcountry': '/test/country.php'
-			}
-		},
-		// 多语言配置
-		language:{
-			'default': 'zh_CN',
-			'cookie': 'lang',
-			'style': BASE('i18n/')
+	app.init(
+		require('sys_config')
+		, function(){
+			// 开始应用
+			oldURL = Win.location.href;
+			hashChanged();
+			// 自动登录的请求
+			window.app = app;
 		}
-	}, function(){
-		// 开始应用
-		oldURL = Win.location.href;
-		hashChanged();
-		app.core.create("platform",platform.mainView);
-		tpl.set('FRONT_BASE', app.config('front_base'));
-	});
-
-	exports.getMainView = function(){
-		return app.core.get("platform").getShowarea();
-	}
+	);
 });
 
 })(seajs, window, document);
