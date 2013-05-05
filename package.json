@@ -1,0 +1,16 @@
+{
+  "name": "pubjs",
+  "version": "0.1.2",
+  "description": "Simple, awesome and powerful Font-End JavaScript development platform",
+  "repository": {
+      "type": "git",
+      "url": "https://github.com/OpenJS/PubJS"
+  },
+  "license": "BSD",
+  "spm": {
+    "alias": {
+      "jquery": "gallery/jquery/1.8.3/jquery",
+      "underscore": "gallery/underscore/1.4.3/underscore"
+    }
+  }
+}
