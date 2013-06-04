@@ -1607,16 +1607,16 @@ define(function(require, exports){
 			}
 			return this;
 		},
-		setDefault: function(uri, value){
+		setDefault: function(uri, value, deep){
 			var data = this.get(uri);
 			if (data){
 				// 合并默认值
-				util.extend(value, data);
-				// 触发更新事件
-				this._trigger(uri, 'update', value, data);
-			}else {
-				this.set(uri, value);
+				if (!util.isNumber(deep)){
+					deep = -1;
+				}
+				value = util.extend(deep, value, data);
 			}
+			this.set(uri, value);
 		},
 		/**
 		 * 获取传址属性值 (可被外部修改)
@@ -1990,7 +1990,7 @@ define(function(require, exports){
 	 * @param  {Object} default_value 默认配置属性对象
 	 * @return {Model}                返回配置对象Model实例
 	 */
-	exports.conf = function(config, default_value){
+	exports.conf = function(config, default_value, deep){
 		if (!config){
 			config = default_value;
 			default_value = null;
@@ -1999,7 +1999,7 @@ define(function(require, exports){
 			config = new Model({data: config});
 		}
 		if (default_value){
-			config.setDefault('/', default_value);
+			config.setDefault('/', default_value, deep);
 		}
 		return config;
 	}

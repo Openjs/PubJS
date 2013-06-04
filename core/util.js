@@ -38,7 +38,7 @@ define(function(require, ex){
 	}
 
 	function typeOfObject(val){
-		return (typeof(val) === 'object');
+		return (val && typeof(val) === 'object');
 	}
 
 	function starRegExp(str){
@@ -85,7 +85,9 @@ define(function(require, ex){
 	ex.isFunc = isFunc;
 	ex.isString = isString;
 	ex.isArray = isArray;
+	ex.isFakeArray = isFakeArray;
 	ex.isObject = isObject;
+	ex.typeOfObject = typeOfObject;
 	ex.isNumber = isNumber;
 	ex.starRegExp = starRegExp;
 	ex.getCssValue = getCssValue;
@@ -462,7 +464,7 @@ define(function(require, ex){
 	 * @param {Mix} value 克隆的对象值
 	 */
 	function Clone(value){
-		if (value && typeOfObject(value)){
+		if (typeOfObject(value)){
 			var cloneKey = '___deep_clone___';
 
 			// 已经被克隆过, 返回新克隆对象
@@ -473,7 +475,7 @@ define(function(require, ex){
 			var objClone = value[cloneKey] = (value instanceof Array ? [] : {});
 			for (var key in value){
 				if (key !== cloneKey && value.hasOwnProperty(key)){
-					objClone[key] = (value[key] && typeOfObject(value[key]) ? Clone(value[key]) : value[key]);
+					objClone[key] = (typeOfObject(value[key]) ? Clone(value[key]) : value[key]);
 				}
 			}
 			delete value[cloneKey];
@@ -485,30 +487,40 @@ define(function(require, ex){
 
 	/**
 	 * 扩展合并函数
-	 * @param {Object} target 目标属性对象
+	 * @param  {Number} deep   <可选> 递归合并层数
+	 * @param  {Object} target 接受合并内容的目标对象
+	 * @param  {Object} ...    需要合并到目标对象的扩展对象(1个或多个)
+	 * @return {Object}        返回合并后的对象内容
 	 */
-	function Extend(target){
+	function Extend(){
+		var args = arguments;
+		var len = args.length;
+		var deep = args[0];
+		var target = args[1];
+		var i = 2;
+		if (!isNumber(deep)){
+			target = deep;
+			deep = -1;
+			i = 1;
+		}
 		if (!target){
 			target = {};
 		}
-		var args = arguments;
-		var len=args.length;
-		for (var i=1; i<len; i++){
+		while (i<len){
 			if (typeOfObject(args[i])){
-				target = ExtendObject(target, args[i]);
+				target = ExtendObject(target, args[i], deep);
 			}
+			i++;
 		}
 		return target;
 	}
-	function ExtendObject(to, from){
-		var type = (to instanceof Array ? 0 : 1);
-			type += (from instanceof Array ? 0 : 2);
-		var i;
+	function ExtendObject(to, from, deep){
+		var i, type = (to instanceof Array ? 0 : 1) + (from instanceof Array ? 0 : 2);
 		switch (type){
 			case 0:
 				// 都是数组, 合并有值的, 忽略undefined的
 				for (i=from.length-1; i>=0;i--){
-					ExtendItem(to, i, from[i], 0);
+					ExtendItem(to, i, from[i], 0, deep);
 				}
 			break;
 			case 1:
@@ -526,21 +538,22 @@ define(function(require, ex){
 				// 都是对象
 				for (i in from){
 					if (has(from, i)){
-						ExtendItem(to, i, from[i], 1);
+						ExtendItem(to, i, from[i], 1, deep);
 					}
 				}
 			break;
 		}
+		return to;
 	}
-	function ExtendItem(to, key, value, remove){
+	function ExtendItem(to, key, value, remove, deep){
 		if (value === UD){
 			// undefined 时删除值
 			if (remove){ delete to[key]; }
 		}else if (typeOfObject(value)){
 			// 新值为对象
-			if (typeOfObject(to[key])){
+			if (deep !== 0 && typeOfObject(to[key])){
 				// 继续合并深层对象
-				ExtendObject(to[key], value);
+				to[key] = ExtendObject(to[key], value, --deep);
 			}else {
 				// 克隆新对象赋值
 				to[key] = Clone(value);
