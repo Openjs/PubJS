@@ -36,18 +36,19 @@
 			// 全局初始配置
 			"sys_config":	ROOT("data/config.js"),
 
+			// 基本模块缩写
+			"boot":			"core/boot.js",
+			"app":			"core/pub.js",
+			"util":			"core/util.js",
+			"tpl":			"core/template.js",
+			"jquery":		"libs/jquery/jquery-1.8.3.min.js",
+			"raphael":		"libs/raphael/raphael.2.1.0.js"
+		},
+		paths: {
 			// 目录缩写
 			"core":			PUBJS("core"),
 			"base":			PUBJS("base"),
 			"libs":			PUBJS("libs"),
-
-			// 基本模块缩写
-			"boot":			PUBJS("core/boot.js"),
-			"app":			PUBJS("core/pub.js"),
-			"util":			PUBJS("core/util.js"),
-			"tpl":			PUBJS("core/template.js"),
-			"jquery":		PUBJS("libs/jquery/jquery-1.8.3.min.js"),
-			"raphael":		PUBJS("libs/raphael/raphael.2.1.0.js")
 		},
 		map: [
 			[/^.*$/, function(url){

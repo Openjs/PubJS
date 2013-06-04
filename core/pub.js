@@ -1625,6 +1625,9 @@ define(function(require, exports){
 		 * @return {Mix}        返回读取到的属性值或默认值
 		 */
 		get: function(uri, def){
+			if (arguments.length === 0){
+				uri = '/';
+			}
 			if (this.$parent){
 				if (uri === '/'){ uri = ''; }
 				return this.$parent.get(this.$root + uri, def);
