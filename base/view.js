@@ -45,7 +45,11 @@ define(function(require,exports) {
 			var c = this.$config.get();
 			var el = c.el;
 			if (!el){
-				c.el = el = $('<'+c.tag+'/>');
+				if (c.tag === 'body'){
+					el = $('body:first');
+				}else {
+					el = $('<'+c.tag+'/>');
+				}
 			}
 			// 设置初始属性
 			if (c.attr){
@@ -68,8 +72,8 @@ define(function(require,exports) {
 			}
 			// 保存元素
 			this.$el = el;
-			// 插入到布局中
-			this.appendTo(c.target);
+			// 渲染元素
+			this.render();
 		},
 		/**
 		 * 把当前容器插入到指定的容器中
@@ -85,30 +89,135 @@ define(function(require,exports) {
 			return this;
 		},
 		/**
+		 * 容器渲染函数
+		 * @return {Object} Container实例
+		 */
+		render: function(){
+			var c = this.$config.get();
+			// 插入到布局中
+			if (this.$el && c.tag !== 'body' && c.target){
+				this.appendTo(c.target);
+			}
+			return this;
+		},
+		/**
+		 * 获取容器的主要DOM对象
+		 * @return {Element} 返回jQuery的对象
+		 */
+		getDOM: function(){
+			return this.$el;
+		},
+		/**
 		 * 显示容器
-		 * @param  {Mix}      config   jQuery show方法的动画配置值 <String|Number>
+		 * @param  {Mix}      config   jQuery show方法的动画配置值
 		 * @return {Object}            Container实例
 		 */
 		show: function(config){
-			this.$el.stop().show(config, this.cbAfterShow);
+			this.$el.stop(true, true)
+				.show(config, this.cbAfterShow);
+
+			if (config === undefined){
+				this.cbAfterShow();
+			}
 			return this;
 		},
 		cbAfterShow: function(){
-			console.log('show ok');
+			if (this.afterShow){
+				this.afterShow();
+			}
+			this.cast('containerShow');
 		},
 		/**
 		 * 隐藏容器
-		 * @param  {Mix}      config   jQuery hide方法的动画配置值 <String|Number>
+		 * @param  {Mix}      config   jQuery hide方法的动画配置值
 		 * @return {Object}            Container实例
 		 */
 		hide: function(config){
-			this.$el.stop().hide(config, this.cbAfterHide);
+			this.$el.stop(true, true)
+				.hide(config, this.cbAfterHide);
+
+			if (config === undefined){
+				this.cbAfterHide();
+			}
 			return this;
 		},
 		cbAfterHide: function(){
-			console.log('hide ok');
+			if (this.afterHide){
+				this.afterHide();
+			}
+			this.cast('containerHide');
+		},
+		/**
+		 * 删除容器
+		 * @param  {Boolean} doom 是否彻底销毁
+		 * @return {Object}       Container实例
+		 */
+		remove: function(doom){
+			if (this.$el){
+				this.$el.remove();
+				if(doom){
+					this.$el = null;
+				}
+			}
+			return this;
+		},
+		/**
+		 * 框架销毁函数的回调函数
+		 * @return {Undefined} 无返回值
+		 */
+		afterDestroy:function(){
+			this.remove(true);
+		},
+		/**
+		 * 销毁函数
+		 * @return {Undefined} 无返回值
+		 */
+		destroy:function(){
+			util.each(this.doms, this.cbRemoveDoms);
+			var el = this.$el;
+			if(el){
+				el.find("*").unbind();
+				el.empty();
+			}
+			this.doms = this.$el = null;
+			Container.master(this,"destroy");
+		},
+		/**
+		 * 删除doms元素循环回调函数
+		 * @param  {Element} dom jQuery元素对象
+		 * @return {None}
+		 */
+		cbRemoveDoms: function(dom){
+			if (dom.jquery){
+				dom.remove();
+			}
 		}
 	});
 	exports.container = Container;
 
+	/**
+	 * 布局视图
+	 */
+	var Layout = app.extend(Container, {
+		init: function(config, parent){
+			config = app.conf(config, {
+				// 对象CSS类
+				'class': 'G-viewLayout',
+				'rows': 0,
+				'cols': 0
+			});
+
+			Layout.master(this, 'init', [config, parent]);
+		},
+		build: function(){
+
+		},
+		get: function(){
+
+		},
+		getRow: function(){
+
+		}
+	});
+	exports.layout = Layout;
 });
