@@ -60,13 +60,12 @@ define(function(require,exports) {
 			}
 			var cls = c['class'];
 			if (cls){
-				if (util.isArray(cls)){
-					cls = cls.join(' ');
-				}
-				el.addClass(cls);
+				el.addClass(
+					util.isArray(cls) ? cls.join(' ') : cls
+				);
 			}
 			if (c.html){
-				el.html(c.html)
+				el.html(c.html);
 			}else if (c.text){
 				el.text(c.text);
 			}
@@ -203,16 +202,89 @@ define(function(require,exports) {
 			config = app.conf(config, {
 				// 对象CSS类
 				'class': 'G-viewLayout',
-				'rows': 0,
-				'cols': 0
+				// 布局类型: horizontal, vertical, grid
+				'type': 'horizontal',
+				// 初始化布局项目
+				'items': null,
+				// 项目默认CSS类
+				'item_class': null
 			});
 
+			this.$items = [];
+			this.$itemClass = null;
 			Layout.master(this, 'init', [config, parent]);
 		},
 		build: function(){
+			var c = this.$config.get();
+			Layout.master(this, 'build');
 
+			// 设置默认项目CSS类
+			var cls = c.item_class;
+			if (!cls){
+				switch (c.type){
+					case 'horizontal':
+						cls = 'G-viewLayoutCol';
+					break;
+					case 'vertical':
+						cls = 'G-viewLayoutRow';
+					break;
+					case 'grid':
+						cls = 'G-viewLayoutGrid';
+					break;
+				}
+			}
+			this.$itemClass = cls;
+
+			var items = c.items;
+			if (items){
+				if (util.isArray(items)){
+					for (var i=0; i<items.length; i++){
+						this.add(items[i]);
+					}
+				}else {
+					this.add(items);
+				}
+			}
+		},
+		buildItem: function(item){
+			var el = item.el;
+			if (!el || !el.jquery){
+				el = $('<'+item.tag+'/>');
+			}
+			// 设置初始属性
+			if (item.attr){
+				el.attr(item.attr);
+			}
+			if (item.css){
+				el.css(item.css);
+			}
+			var cls = item['class'];
+			if (cls){
+				el.addClass(
+					util.isArray(cls) ? cls.join(' ') : cls
+				);
+			}
+			if (item.html){
+				el.html(item.html);
+			}else if (item.text){
+				el.text(item.text);
+			}
+			item.el = el.appendTo(this.$el);
+
+			this.$items.push(item);
+		},
+		add: function(config){
+			config = util.extend({
+				'el': null,
+				'tag': 'div',
+				'class': this.$itemClass
+			}, config);
+			this.buildItem(config);
 		},
 		get: function(){
+
+		},
+		getByID: function(id){
 
 		},
 		getRow: function(){
