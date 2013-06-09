@@ -1365,6 +1365,21 @@ define(function(require, exports){
 		 * @param  {Function} callback 事件回调的函数
 		 * @return {Object}            支持链式调用, 返回模块实例
 		 */
+		uiBind: function(dom, type, data, callback){
+			if (!dom){
+				return this;
+			}
+			if (!dom.jquery){
+				dom = $(dom);
+			}
+			if (isFunc(data) || arguments.length == 3){
+				callback = data;
+				data = null;
+			}
+			dom.bind(type, [this._.guid, callback, data], jqRouter);
+			return this;
+		},
+		/* 兼容旧版本, 将要去除 */
 		jq: function(dom, type, data, callback){
 			if (!dom){
 				return this;
@@ -1388,6 +1403,21 @@ define(function(require, exports){
 		 * @param  {Function} callback 事件回调的函数
 		 * @return {Object}            支持链式调用, 返回模块实例
 		 */
+		uiProxy: function(dom, selector, type, data, callback){
+			if (!dom){
+				return this;
+			}
+			if (!dom.jquery){
+				dom = $(dom);
+			}
+			if (isFunc(data) || arguments.length == 4){
+				callback = data;
+				data = null;
+			}
+			dom.delegate(selector, type, [this._.guid, callback, data], jqRouter);
+			return this;
+		},
+		/* 兼容旧版本, 将要去除 */
 		dg: function(dom, selector, type, data, callback){
 			if (!dom){
 				return this;
