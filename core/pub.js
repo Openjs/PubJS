@@ -15,7 +15,7 @@ define(function(require, exports){
 		var v = ag.callee.caller['arguments'];
 		if (ag.length == 2){
 			return func.apply(scope, v);
-		}else if (args instanceof Array && args.length){
+		}else if (args instanceof ag.constructor || (args instanceof Array && args.length)){
 			return func.apply(scope, args);
 		}else {
 			return func.call(scope);
@@ -39,8 +39,8 @@ define(function(require, exports){
 			if (arguments.length === 0){
 				return (sup == noop ? null : sup);
 			}
-			var v = arguments.callee.caller['arguments'];
 			if (!func){
+				var v = arguments.callee.caller.arguments;
 				return sup.call(scope, (args || v[0]), v[1], v[2]);
 			}
 			return argv_run(arguments, sup.prototype, scope, func, args);
