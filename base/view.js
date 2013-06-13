@@ -38,6 +38,7 @@ define(function(require,exports) {
 			me.cbAfterShow = me.cbAfterShow.bind(me);
 			me.cbAfterHide = me.cbAfterHide.bind(me);
 
+			me.$ready = 0;
 			// 构建元素
 			me.build();
 		},
@@ -73,6 +74,8 @@ define(function(require,exports) {
 			this.$el = el;
 			// 渲染元素
 			this.render();
+			this.$ready = 1;
+			return this;
 		},
 		/**
 		 * 把当前容器插入到指定的容器中
@@ -210,10 +213,16 @@ define(function(require,exports) {
 				'item_class': null
 			});
 
-			this.$items = [];
-			this.$itemClass = null;
-			Layout.master(this, 'init', [config, parent]);
+			var me = this;
+			me.$items = [];
+			me.$itemClass = null;
+			// 调用Container.init()方法
+			Layout.master(me, 'init', arguments);
 		},
+		/**
+		 * 构建Layout主要容器和配置预设项目
+		 * @return {Module} 返回模块实例本身(链式调用)
+		 */
 		build: function(){
 			var c = this.$config.get();
 			Layout.master(this, 'build');
@@ -239,13 +248,20 @@ define(function(require,exports) {
 			if (items){
 				if (util.isArray(items)){
 					for (var i=0; i<items.length; i++){
-						this.add(items[i]);
+						this.add(items[i], false);
 					}
+					this.redraw();
 				}else {
 					this.add(items);
 				}
 			}
+			return this;
 		},
+		/**
+		 * 建立Layout的子项目对象
+		 * @param  {Object} item 项目配置对象
+		 * @return {Moudle}      返回模块实例本身(链式调用)
+		 */
 		buildItem: function(item){
 			var el = item.el;
 			if (!el || !el.jquery){
@@ -272,23 +288,92 @@ define(function(require,exports) {
 			item.el = el.appendTo(this.$el);
 
 			this.$items.push(item);
+			return this;
 		},
-		add: function(config){
+		/**
+		 * 重新计算布局位置
+		 * @return {Module} 返回模块实例本身(链式调用)
+		 */
+		redraw: function(){
+			// todo: 针对不同的布局类型计算布局位置和大小
+			return this;
+		},
+		/**
+		 * 添加Layout的子项目对象
+		 * @param  {Object}  item   项目配置对象, 或者项目id名称字符串
+		 * @param  {Boolean} redraw <可选> 是否重新计算布局 (默认重算)
+		 * @return {Moudle}         返回模块实例本身(链式调用)
+		 */
+		add: function(config, redraw){
+			if (util.isString(config)){
+				config = {'id': config};
+			}
 			config = util.extend({
 				'el': null,
 				'tag': 'div',
 				'class': this.$itemClass
 			}, config);
 			this.buildItem(config);
+			if (arguments.length === 1 || redraw){
+				this.redraw();
+			}
+			return this;
 		},
-		get: function(){
-
+		/**
+		 * 删除指定索引的Layout布局容器
+		 * @param  {Number}  index  容器索引号码 (负数表示从后查找)
+		 * @param  {Boolean} redraw <可选> 是否重新计算布局 (默认重算)
+		 * @return {Module}         返回模块实例本身(链式调用)
+		 */
+		remove: function(index, redraw){
+			if (index < 0){
+				index += this.$items.length;
+			}
+			var item = this.$items[index];
+			if (item){
+				item.el.remove();
+				this.$items.splice(index, 1);
+			}
+			return this;
 		},
-		getByID: function(id){
-
+		/**
+		 * 获取指定索引编号的布局容器
+		 * @param  {Number}  index  容器索引号码 (负数表示从后查找)
+		 * @param  {Boolean} detail <可选>是否返回完整的项目配置对象
+		 * @return {Object}         返回容器jQuery或者项目配置对象, 或者NULL表示没有找到
+		 */
+		get: function(index, detail){
+			if (index < 0){
+				index += this.$items.length;
+			}
+			var item = this.$items[index];
+			if (item){
+				return (detail ? item : item.el);
+			}
+			return null;
 		},
-		getRow: function(){
-
+		/**
+		 * 查找第一个满足某个属性值的布局容器
+		 * @param  {Mix}     val    要查找的值
+		 * @param  {String}  field  要匹配属性名称
+		 * @param  {Boolean} detail <可选>是否返回完整的项目配置对象
+		 * @return {Object}         返回容器jQuery或者项目配置对象, 或者NULL表示没有找到
+		 */
+		getBy: function(val, field, detail){
+			var item = util.find(this.$items, id, field);
+			if (item){
+				return (detail ? item : item.el);
+			}
+			return null;
+		},
+		/**
+		 * 按照id查找指定的布局容器
+		 * @param  {String}  id     布局项目id值
+		 * @param  {Boolean} detail <可选>是否返回完整的项目配置对象
+		 * @return {Object}         返回容器jQuery或者项目配置对象, 或者NULL表示没有找到
+		 */
+		getByID: function(id, detail){
+			return this.getBy(id, 'id', detail);
 		}
 	});
 	exports.layout = Layout;
