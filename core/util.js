@@ -1,6 +1,7 @@
 define(function(require, ex){
 	var $ = require('jquery');
 	var UD;
+	var OP = Object.prototype;
 
 	// 变量类型判断
 	function isFunc(func){
@@ -31,6 +32,21 @@ define(function(require, ex){
 
 	function isObject(val){
 		return (val instanceof Object);
+	}
+
+	function isPlainObject(val){
+		if (OP.toString.call(val).slice(8,-1) !== 'Object' || val.nodeType || val === window){
+			return false;
+		}
+		try {
+			if (val.constructor && !has(val.constructor.prototype, 'isPrototypeOf')){
+				return false;
+			}
+		} catch (e){
+			return false;
+		}
+
+		return true;
 	}
 
 	function isNumber(val){
@@ -76,7 +92,7 @@ define(function(require, ex){
 		return c;
 	}
 
-	var _has = Object.prototype.hasOwnProperty;
+	var _has = OP.hasOwnProperty;
 	function has(obj, key){
 		if (key === UD) {return false;}
 		return _has.call(obj, key);
@@ -409,6 +425,7 @@ define(function(require, ex){
 		};
 	}
 
+	// todo: 统一使用extend方法
 	ex.merge = function(target, source, retrun_change){
 		var is_change = false;
 		ex.each(source, function(val, name){
@@ -464,7 +481,7 @@ define(function(require, ex){
 	 * @param {Mix} value 克隆的对象值
 	 */
 	function Clone(value){
-		if (typeOfObject(value)){
+		if (isPlainObject(value) || isArray(value)){
 			var cloneKey = '___deep_clone___';
 
 			// 已经被克隆过, 返回新克隆对象
@@ -514,53 +531,56 @@ define(function(require, ex){
 		}
 		return target;
 	}
-	function ExtendObject(to, from, deep){
-		var i, type = (to instanceof Array ? 0 : 1) + (from instanceof Array ? 0 : 2);
+	function ExtendObject(dst, src, deep){
+		if (dst === src){ return dst; }
+		var i, type = (dst instanceof Array ? 0 : 1) + (src instanceof Array ? 0 : 2);
 		switch (type){
 			case 0:
 				// 都是数组, 合并有值的, 忽略undefined的
-				for (i=from.length-1; i>=0;i--){
-					ExtendItem(to, i, from[i], 0, deep);
+				for (i=src.length-1; i>=0;i--){
+					ExtendItem(dst, i, src[i], 0, deep);
 				}
 			break;
 			case 1:
 				// 目标是对象, 新值是数组
-				to = Clone(from);
+				dst = Clone(src);
 			break;
 			case 2:
 				// 目标是数组, 新值是对象
-				if (!isFakeArray(from)){
-					to = Clone(from);
+				if (!isFakeArray(src)){
+					dst = Clone(src);
 					break;
 				}
 			/* falls through */
 			case 3:
 				// 都是对象
-				for (i in from){
-					if (has(from, i)){
-						ExtendItem(to, i, from[i], 1, deep);
+				if (!dst){ dst = {}; }
+				for (i in src){
+					if (has(src, i)){
+						ExtendItem(dst, i, src[i], 1, deep);
 					}
 				}
 			break;
 		}
-		return to;
+		return dst;
 	}
-	function ExtendItem(to, key, value, remove, deep){
+	function ExtendItem(dst, key, value, remove, deep){
 		if (value === UD){
 			// undefined 时删除值
-			if (remove){ delete to[key]; }
-		}else if (typeOfObject(value)){
+			if (remove){ delete dst[key]; }
+		}else if (value && (isArray(value) || isPlainObject(value))){
 			// 新值为对象
-			if (deep !== 0 && typeOfObject(to[key])){
-				// 继续合并深层对象
-				to[key] = ExtendObject(to[key], value, --deep);
+			if (dst[key] === value){ return; }
+			if (deep !== 0){
+				// 继续合并数组和简答对象
+				dst[key] = ExtendObject(dst[key], value, --deep);
 			}else {
 				// 克隆新对象赋值
-				to[key] = Clone(value);
+				dst[key] = Clone(value);
 			}
 		}else {
 			// 直接赋值
-			to[key] = value;
+			dst[key] = value;
 		}
 	}
 	ex.extend = Extend;
