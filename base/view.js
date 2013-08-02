@@ -1,6 +1,6 @@
 define(function(require,exports) {
 	var $ = require('jquery');
-	var app = require('../core/pub.js');
+	var pubjs = require('../core/pub.js');
 	var util = require('../core/util.js');
 
 	/**
@@ -11,7 +11,7 @@ define(function(require,exports) {
 	/**
 	 * 容器视图类
 	 */
-	var Container = app.extend(app.Module, {
+	var Container = pubjs.Module.extend({
 		init: function(config, parent){
 			var me = this;
 			me.$config = app.conf(config, {
@@ -200,7 +200,7 @@ define(function(require,exports) {
 	/**
 	 * 布局视图
 	 */
-	var Layout = app.extend(Container, {
+	var Layout = Container.extend({
 		init: function(config, parent){
 			config = app.conf(config, {
 				// 对象CSS类

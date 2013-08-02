@@ -1,21 +1,14 @@
 define(function(require, exports){
 	var $ = require('jquery');
 	var util = require('./util');
-	exports.version = '0.1.0';
-
-	// 空函数
-	function noop(){}
-	exports.noop = noop;
+	var version = exports.version = '0.2.0';
 
 	// 类式继承功能函数
-	function argv_run(ag, proto, scope, func, args){
-		if (!func || !(func in proto)) {return undefined;}
+	function argv_run(proto, scope, func, args){
+		if (func==='' || !(func in proto)) {return undefined;}
 		func = proto[func];
 		if (typeof(func) != 'function') {return func;}
-		var v = ag.callee.caller['arguments'];
-		if (ag.length == 2){
-			return func.apply(scope, v);
-		}else if (args instanceof ag.constructor || (args instanceof Array && args.length)){
+		if (args instanceof arguments.constructor || (args instanceof Array && args.length)){
 			return func.apply(scope, args);
 		}else {
 			return func.call(scope);
@@ -23,53 +16,53 @@ define(function(require, exports){
 	}
 	// 模块自有公共属性和方法调用
 	function mine_run(scope, func, args){
-		return argv_run(arguments, this.prototype, scope, func, args);
+		return argv_run(this.prototype, scope, func, args);
 	}
 	// 私有对象属性设置
-	function self_run(scope, func){
-		var args = [];
-		for (var i=2; i<arguments.length; i++){
-			args.push(arguments[i]);
-		}
-		return argv_run(arguments, this.p, scope, func, args);
+	function self_run(scope, func, args){
+		return argv_run(this.priv, scope, func, args);
 	}
-	function extend(sub,sup,proto,priv){
-		function f(scope, func, args){
+
+	// 空函数
+	function noop(){}
+	noop.extend = function(proto, priv){
+		var sup = this;
+		function master(scope, func, args){
 			if (scope === 0) {return this;}
 			if (arguments.length === 0){
 				return (sup == noop ? null : sup);
 			}
-			if (!func){
-				var v = arguments.callee.caller.arguments;
-				return sup.call(scope, (args || v[0]), v[1], v[2]);
+			if (!func){ func = 'init'; }
+			return argv_run(sup.prototype, scope, func, args);
+		}
+		master.prototype = sup.prototype;
+
+		function sub(){
+			var ct = this.__constructor;
+			if (ct && ct instanceof Function){
+				ct.apply(this, arguments);
 			}
-			return argv_run(arguments, sup.prototype, scope, func, args);
+			return this;
 		}
-		f.prototype = sup.prototype;
-
-		var n=0, o=sub.prototype;
-		var c = sub.prototype = new f(0);
-
-		for (n in o){
-			if (o.hasOwnProperty(n)) {c[n] = o[n];}
+		var c = sub.prototype = new master(0);
+		if (typeof(proto) == 'object'){
+			for (var n in proto){
+				if (proto.hasOwnProperty(n)){
+					c[n] = proto[n];
+				}
+			}
 		}
-		if (typeof(proto) == 'object') {for (n in proto){
-			if (proto.hasOwnProperty(n)) {c[n] = proto[n];}
-		}}
 		c.constructor = sub;
-		sub.master = f;
+		sub.master = master;
 		sub.self = self_run;
 		sub.mine = mine_run;
-		sub.p = priv;
-		sub.version = exports.version;
-		proto = null;
+		sub.priv = priv;
+		sub.version = version;
+		sub.extend = this.extend;
+		proto = priv = null;
 		return sub;
 	}
-
-	exports.extend = function(sup, proto, priv){
-		return extend(function(){}, sup, proto, priv);
-	}
-
+	exports.noop = noop;
 
 	// 系统日志函数
 	var con = window.console || {};
@@ -111,14 +104,14 @@ define(function(require, exports){
 		return false;
 	}
 	util.isModule = isModule;
-	function isCreator(func){
+	function isClass(func){
 		if (!func || !func.master) { return false; }
 		if (func.self !== self_run) { return false; }
 		if (func.mine !== mine_run) { return false; }
-		if (func.version !== exports.version) { return false; }
+		if (func.version !== version) { return false; }
 		return true;
 	}
-	util.isCreator = isCreator;
+	util.isClass = isClass;
 
 	// 用户登录检查
 	var user_data = null;
@@ -200,7 +193,9 @@ define(function(require, exports){
 					value = val[i].indexOf('=');
 					key = val[i].substr(0, value);
 					value = val[i].substr(value+1);
-					map[key] = decodeURIComponent(value);
+					try {
+						map[key] = decodeURIComponent(value);
+					}catch(e){}
 				}
 			}
 			if (arguments.length == 1){
@@ -1000,11 +995,8 @@ define(function(require, exports){
 	 *   pid   @type {Number}  父模块实例ID (GUID)
 	 *   guid  @type {Number}  当前模块的实例ID (GUID)
 	 */
-	function Module(){
-		return this;
-	}
 	var childs='childs',childs_name='childs_name',childs_id='childs_id';
-	extend(Module, noop, {
+	var Module = noop.extend({
 		/**
 		 * 空模块判断函数
 		 * @return {Boolean} 返回TRUE表示当前模块是虚拟空模块, FALSE表示为真实模块
@@ -1585,12 +1577,12 @@ define(function(require, exports){
 	/**
 	 * 数据模块基类
 	 */
-	function Model(config, parent){
-		this.init(config, parent);
-		return this;
-	}
 	var ModelBase, ModelProp;
-	exports.Model = extend(Model, noop, {
+	var Model = noop.extend({
+		// 构造函数
+		__constructor: function(config, parent){
+			this.init(config, parent);
+		},
 		/**
 		 * 初始化模型实例
 		 * @param  {Object} config <可选> 实例初始化对象
@@ -1917,22 +1909,23 @@ define(function(require, exports){
 			return true;
 		}
 	});
+	exports.Model = Model;
 	exports.ds = new Model();
 
 	/**
 	 * 应用核心模块
 	 */
-	function Core(){
-		this._ = {
-			uri: '',
-			name: 'APP',
-			parent: 0,
-			guid: 1
-		};
-		caches['1'] = this;
-		caches.length++;
-	}
-	extend(Core, Module, {
+	var Core = Module.extend({
+		__constructor: function(){
+			this._ = {
+				uri: '',
+				name: 'CORE',
+				parent: 0,
+				guid: 1
+			};
+			caches['1'] = this;
+			caches.length++;
+		},
 		get: function(uri){
 			uri = uri.replace(/^[\/]+/, '');
 			return Core.master(this, 'get', [uri]);
