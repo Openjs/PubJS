@@ -26,25 +26,29 @@ define(function(require, exports){
 	// 空函数
 	function noop(){}
 	noop.extend = function(proto, priv){
-		var sup = this;
-		function master(scope, func, args){
-			if (scope === 0) {return this;}
-			if (arguments.length === 0){
-				return (sup == noop ? null : sup);
+		var $parent = this;
+		function master(func, args){
+			if (func === -31826) {return this;}
+			if (arguments.length === 0 || !func || typeof(func) !== 'string'){
+				args = func;
+				func = '__constructor';
 			}
-			if (!func){ func = 'init'; }
-			return argv_run(sup.prototype, scope, func, args);
+			this.master = $parent.master;
+			var ret = argv_run($parent.prototype, this, func, args);
+			this.master = master;
+			return ret;
 		}
-		master.prototype = sup.prototype;
+		master.prototype = $parent.prototype;
 
-		function sub(){
+		function Class(){
+			this.master = master;
 			var ct = this.__constructor;
 			if (ct && ct instanceof Function){
 				ct.apply(this, arguments);
 			}
 			return this;
 		}
-		var c = sub.prototype = new master(0);
+		var c = Class.prototype = new master(0);
 		if (typeof(proto) == 'object'){
 			for (var n in proto){
 				if (proto.hasOwnProperty(n)){
@@ -52,15 +56,15 @@ define(function(require, exports){
 				}
 			}
 		}
-		c.constructor = sub;
-		sub.master = master;
-		sub.self = self_run;
-		sub.mine = mine_run;
-		sub.priv = priv;
-		sub.version = version;
-		sub.extend = this.extend;
+		c.constructor = Class;
+		Class.master = master;
+		Class.self = self_run;
+		Class.mine = mine_run;
+		Class.priv = priv;
+		Class.version = version;
+		Class.extend = this.extend;
 		proto = priv = null;
-		return sub;
+		return Class;
 	}
 	exports.noop = noop;
 
@@ -1928,11 +1932,11 @@ define(function(require, exports){
 		},
 		get: function(uri){
 			uri = uri.replace(/^[\/]+/, '');
-			return Core.master(this, 'get', [uri]);
+			return this.master('get', [uri]);
 		},
 		gets: function(uri){
 			uri = uri.replace(/^[\/]+/, '');
-			return Core.master(this, 'gets', [uri]);
+			return this.master('gets', [uri]);
 		},
 		destroy: function(){
 		}

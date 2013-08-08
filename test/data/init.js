@@ -1,5 +1,5 @@
 (function(Sea, Win, Doc){
-	var pubjs = '/pubjs/';
+	var pubjs = '/';
 	var path = Win.location.pathname;
 	var root = path;
 	if (root.slice(-1) !== '/'){

@@ -14,7 +14,7 @@ define(function(require,exports) {
 	var Container = pubjs.Module.extend({
 		init: function(config, parent){
 			var me = this;
-			me.$config = app.conf(config, {
+			me.$config = pubjs.conf(config, {
 				// 容器元素 (可指定容器的DOM元素而不创建)
 				'el': null,
 				// 容器标签
@@ -182,7 +182,7 @@ define(function(require,exports) {
 				el.empty();
 			}
 			this.doms = this.$el = null;
-			Container.master(this,"destroy");
+			this.master("destroy");
 		},
 		/**
 		 * 删除doms元素循环回调函数
@@ -202,7 +202,7 @@ define(function(require,exports) {
 	 */
 	var Layout = Container.extend({
 		init: function(config, parent){
-			config = app.conf(config, {
+			config = pubjs.conf(config, {
 				// 对象CSS类
 				'class': 'G-viewLayout',
 				// 布局类型: horizontal, vertical, grid
@@ -217,7 +217,7 @@ define(function(require,exports) {
 			me.$items = [];
 			me.$itemClass = null;
 			// 调用Container.init()方法
-			Layout.master(me, 'init', arguments);
+			me.master('init', arguments);
 		},
 		/**
 		 * 构建Layout主要容器和配置预设项目
@@ -225,7 +225,7 @@ define(function(require,exports) {
 		 */
 		build: function(){
 			var c = this.$config.get();
-			Layout.master(this, 'build');
+			this.master('build');
 
 			// 设置默认项目CSS类
 			var cls = c.item_class;
